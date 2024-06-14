@@ -1,4 +1,4 @@
-# Image Resizer
+# Image Resizer 0.1 alpha
 
 This project provides a simple command-line tool for resizing images. It takes an input image (currently supports JPG and PNG) and resizes it to the specified dimensions, saving the output as a new JPG file.
 
