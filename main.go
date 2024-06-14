@@ -25,7 +25,7 @@ func main() {
 
 	tensor := imagetor.ImageToTensor(img)
 
-	tensor = imagetor.Resize(tensor, 460, 260)
+	tensor = imagetor.Resize(tensor, 1920, 1080)
 
 	newImg := imagetor.TensorToImage(tensor)
 
