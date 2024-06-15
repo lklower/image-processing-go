@@ -140,11 +140,11 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 	targetWidth := len(target[0])
 	targetHeight := len(target)
 
-	factor := scaleFactor(target, overlay)
+	scalingFactor := scaleFactor(target, overlay)
 
 	// Calculate new overlay size
-	newOverlayWidth := int(float64(len(overlay[0])) * factor)
-	newOverlayHeight := int(float64(len(overlay)) * factor)
+	newOverlayWidth := int(float64(len(overlay[0])) * scalingFactor)
+	newOverlayHeight := int(float64(len(overlay)) * scalingFactor)
 
 	scaleOverlay := Resize(overlay, newOverlayWidth, newOverlayHeight)
 
