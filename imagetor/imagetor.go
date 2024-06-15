@@ -1,6 +1,7 @@
 package imagetor
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	_ "image/jpeg"
@@ -92,4 +93,85 @@ func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
 
 	wg.Wait() // Wait for all goroutines finish
 	return newTensor
+}
+
+// scaleFactor calculates the scaling factor for an overlay image to fit within a target image while maintaining aspect ratio.
+//
+// It determines the maximum scaling factor that allows the overlay to fit within the target image without exceeding its dimensions.
+//
+// Args:
+//  target: The target image represented as a 3D tensor of float64.
+//  overlay: The overlay image represented as a 3D tensor of float64.
+//
+// Returns:
+//  The scaling factor as a float64.
+func scaleFactor(target [][][]float64, overlay [][][]float64) float64 {
+	var factor float64 = 1.0
+	baseWidth, baseHeight := len(target[0]), len(target)
+	overlayWidth, overlayHeight := len(overlay[0]), len(overlay)
+
+	if overlayWidth > baseWidth || overlayHeight > baseHeight {
+		scaleX := float64(baseWidth) / float64(overlayWidth)
+		scaleY := float64(baseHeight) / float64(overlayHeight)
+		factor = min(scaleX, scaleY)
+	}
+
+	return factor
+}
+
+// AddOverlay adds an overlay image to a target image with alpha blending.
+//
+// The overlay image is resized to fit within the target image, maintaining its aspect ratio.
+// The overlay is then centered within the target image.
+//
+// Alpha blending is applied to the overlay, allowing the target image to show through.
+//
+// Args:
+//  target: The target image represented as a 3D tensor of float64.
+//  overlay: The overlay image represented as a 3D tensor of float64.
+//
+// Returns:
+//  A new 3D tensor representing the combined image, or an error if the target or overlay is empty.
+func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, error) {
+	if len(target) == 0 || len(overlay) == 0 {
+		return nil, fmt.Errorf("target or overlay is empty")
+	}
+
+	targetWidth := len(target[0])
+	targetHeight := len(target)
+
+	factor := scaleFactor(target, overlay)
+
+	// Calculate new overlay size
+	newOverlayWidth := int(float64(len(overlay[0])) * factor)
+	newOverlayHeight := int(float64(len(overlay)) * factor)
+
+	scaleOverlay := Resize(overlay, newOverlayWidth, newOverlayHeight)
+
+	// Calculate center position for overlay
+	offsetX := (targetWidth - newOverlayWidth) / 2
+	offsetY := (targetHeight - newOverlayHeight) / 2
+
+	// Create new 3d tensor to hold the result
+	newTensor := make([][][]float64, targetHeight)
+	for y := 0; y < targetHeight; y++ {
+		newTensor[y] = make([][]float64, targetWidth)
+		for x := 0; x < targetWidth; x++ {
+			newTensor[y][x] = make([]float64, 4)
+			copy(newTensor[y][x], target[y][x])
+		}
+	}
+
+	// Apply overlay with alpha blending
+	for y := offsetY; y < offsetY+newOverlayHeight; y++ {
+		for x := offsetX; x < offsetX+newOverlayWidth; x++ {
+			alpha := scaleOverlay[y-offsetY][x-offsetX][3]
+			for i := 0; i < 3; i++ {
+				newTensor[y][x][i] = scaleOverlay[y-offsetY][x-offsetX][i] + ((1 - alpha) * newTensor[y][x][i])
+			}
+			newTensor[y][x][3] = 1.0
+		}
+	}
+
+	return newTensor, nil
 }
