@@ -71,29 +71,11 @@ func main() {
 
 	resultImage := imagetor.TensorToImage(resultTensor)
 
-<<<<<<< HEAD
 	saveImage(resultImage, "output.jpg")
 
 	endTime := time.Now()
 	elapsedTime := endTime.Sub(startTime)
 
-=======
-	writer, err := os.Create("output.jpg")
-	if err != nil {
-		fmt.Println("Error creating output file: ", err)
-		return
-	}
-	defer writer.Close()
-
-	if err := jpeg.Encode(writer, resultImage, &jpeg.Options{Quality: 100}); err != nil {
-		fmt.Println("Error encoding image: ", err)
-		return
-	}
-
-	endTime := time.Now()
-	elapsedTime := endTime.Sub(startTime)
-
->>>>>>> 7837cc1 (updated)
 	fmt.Println("Image saved successfully.")
 
 	fmt.Println("Elapsed time: ", elapsedTime)

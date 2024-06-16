@@ -11,22 +11,14 @@ import (
 
 // Number of color channels (RGBA).
 const channels int = 4
-<<<<<<< HEAD
 const numWorkers int = 4
-=======
-const numCoroutines int = 4
->>>>>>> 7837cc1 (updated)
 
 // imageToTensor converts an image.Image to a 3D tensor of float64.
 func ImageToTensor(img image.Image) [][][]float64 {
 	var bounds image.Rectangle = img.Bounds()
 	var width int = bounds.Max.X - bounds.Min.X
 	var height int = bounds.Max.Y - bounds.Min.Y
-<<<<<<< HEAD
 	var tileWidth int = width / numWorkers
-=======
-	var tileWidth int = width / numCoroutines
->>>>>>> 7837cc1 (updated)
 
 	tensor := make([][][]float64, height)
 	for y := 0; y < height; y++ {
@@ -37,15 +29,9 @@ func ImageToTensor(img image.Image) [][][]float64 {
 	}
 
 	var wg sync.WaitGroup
-<<<<<<< HEAD
 	wg.Add(numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-=======
-	wg.Add(numCoroutines)
-
-	for i := 0; i < numCoroutines; i++ {
->>>>>>> 7837cc1 (updated)
 		go func(start, end int) {
 			defer wg.Done()
 			for y := 0; y < height; y++ {
@@ -69,21 +55,12 @@ func ImageToTensor(img image.Image) [][][]float64 {
 func TensorToImage(tensor [][][]float64) image.Image {
 	height, width := len(tensor), len(tensor[0])
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-<<<<<<< HEAD
 	var tileWidth int = width / numWorkers
 
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-=======
-	var tileWidth int = width / numCoroutines
-
-	var wg sync.WaitGroup
-	wg.Add(numCoroutines)
-
-	for i := 0; i < numCoroutines; i++ {
->>>>>>> 7837cc1 (updated)
 		go func(start, end int) {
 			defer wg.Done()
 			for y := 0; y < height; y++ {
@@ -218,7 +195,6 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 		}
 	}
 
-<<<<<<< HEAD
 	tileHeight := newOverlayHeight / numWorkers
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
@@ -227,16 +203,6 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 		startY := offsetY + i*tileHeight
 		endY := offsetY + (i+1)*tileHeight
 		if i == numWorkers-1 {
-=======
-	tileHeight := newOverlayHeight / numCoroutines
-	var wg sync.WaitGroup
-	wg.Add(numCoroutines)
-
-	for i := 0; i < numCoroutines; i++ {
-		startY := offsetY + i*tileHeight
-		endY := offsetY + (i+1)*tileHeight
-		if i == numCoroutines-1 {
->>>>>>> 7837cc1 (updated)
 			endY = offsetY + newOverlayHeight
 		}
 
