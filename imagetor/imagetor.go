@@ -82,6 +82,7 @@ func TensorToImage(tensor [][][]float64) image.Image {
 // resize resizes a tensor using bilinear interpolation.
 func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
 	oldHeight, oldWidth := len(tensor), len(tensor[0])
+	tileHeight := height / numWorkers
 
 	newTensor := make([][][]float64, height)
 	for y := 0; y < height; y++ {
@@ -92,32 +93,34 @@ func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(height)
+	wg.Add(numWorkers)
 
-	// Process each row concurrently
-	for y := 0; y < height; y++ {
-		go func(y int) {
+	for i := 0; i < numWorkers; i++ {
+		go func(start, end int) {
 			defer wg.Done()
-			for x := 0; x < width; x++ {
-				oldX := float64(x) * float64(oldWidth) / float64(width)
-				oldY := float64(y) * float64(oldHeight) / float64(height)
 
-				x0 := int(oldX)
-				y0 := int(oldY)
-				dx := oldX - float64(x0)
-				dy := oldY - float64(y0)
+			for y := start; y < end; y++ {
+				for x := 0; x < width; x++ {
+					oldX := float64(x) * float64(oldWidth) / float64(width)
+					oldY := float64(y) * float64(oldHeight) / float64(height)
 
-				// Skip if the surrounding pixels are out of bounds
-				if x0 < 0 || x0 >= oldWidth-1 || y0 < 0 || y0 >= oldHeight-1 {
-					continue
-				}
+					x0 := int(oldX)
+					y0 := int(oldY)
+					dx := oldX - float64(x0)
+					dy := oldY - float64(y0)
 
-				// Perform bilinear interpolation for each channel
-				for c := 0; c < channels; c++ {
-					newTensor[y][x][c] = (1-dx)*(1-dy)*tensor[y0][x0][c] + dx*(1-dy)*tensor[y0][x0+1][c] + (1-dx)*dy*tensor[y0+1][x0][c] + dx*dy*tensor[y0+1][x0+1][c]
+					// Skip if the surrounding pixels are out of bounds
+					if x0 < 0 || x0 >= oldWidth-1 || y0 < 0 || y0 >= oldHeight-1 {
+						continue
+					}
+
+					// Perform bilinear interpolation for each channel
+					for c := 0; c < channels; c++ {
+						newTensor[y][x][c] = (1-dx)*(1-dy)*tensor[y0][x0][c] + dx*(1-dy)*tensor[y0][x0+1][c] + (1-dx)*dy*tensor[y0+1][x0][c] + dx*dy*tensor[y0+1][x0+1][c]
+					}
 				}
 			}
-		}(y)
+		}(i*tileHeight, (i+1)*tileHeight)
 	}
 
 	wg.Wait() // Wait for all goroutines finish
@@ -200,12 +203,11 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 	wg.Add(numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-		startY := offsetY + i*tileHeight
-		endY := offsetY + (i+1)*tileHeight
-		if i == numWorkers-1 {
-			endY = offsetY + newOverlayHeight
-		}
-
+		// startY := offsetY + i*tileHeight
+		// endY := offsetY + (i+1)*tileHeight
+		// if i == numWorkers-1 {
+		// 	endY = offsetY + newOverlayHeight
+		// }
 		go func(startY, endY int) {
 			defer wg.Done()
 			// Apply overlay with alpha blending
@@ -218,7 +220,7 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 					newTensor[y][x][3] = 1.0
 				}
 			}
-		}(startY, endY)
+		}(offsetY+i*tileHeight, offsetY+(i+1)*tileHeight)
 	}
 
 	wg.Wait()
