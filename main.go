@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -24,6 +25,23 @@ func openImage(path string) (image.Image, error) {
 		return nil, e
 	}
 	return img, nil
+}
+
+func saveImage(result image.Image, path string) error {
+
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
+	if err := jpeg.Encode(writer, result, &jpeg.Options{Quality: 100}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
@@ -53,17 +71,7 @@ func main() {
 
 	resultImage := imagetor.TensorToImage(resultTensor)
 
-	writer, err := os.Create("output.jpg")
-	if err != nil {
-		fmt.Println("Error creating output file: ", err)
-		return
-	}
-	defer writer.Close()
-
-	if err := jpeg.Encode(writer, resultImage, &jpeg.Options{Quality: 100}); err != nil {
-		fmt.Println("Error encoding image: ", err)
-		return
-	}
+	saveImage(resultImage, "output.jpg")
 
 	endTime := time.Now()
 	elapsedTime := endTime.Sub(startTime)
