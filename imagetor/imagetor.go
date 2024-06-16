@@ -11,14 +11,14 @@ import (
 
 // Number of color channels (RGBA).
 const channels int = 4
-const numCoroutines int = 4
+const numWorkers int = 4
 
 // imageToTensor converts an image.Image to a 3D tensor of float64.
 func ImageToTensor(img image.Image) [][][]float64 {
 	var bounds image.Rectangle = img.Bounds()
 	var width int = bounds.Max.X - bounds.Min.X
 	var height int = bounds.Max.Y - bounds.Min.Y
-	var tileWidth int = width / numCoroutines
+	var tileWidth int = width / numWorkers
 
 	tensor := make([][][]float64, height)
 	for y := 0; y < height; y++ {
@@ -29,9 +29,9 @@ func ImageToTensor(img image.Image) [][][]float64 {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(numCoroutines)
+	wg.Add(numWorkers)
 
-	for i := 0; i < numCoroutines; i++ {
+	for i := 0; i < numWorkers; i++ {
 		go func(start, end int) {
 			defer wg.Done()
 			for y := 0; y < height; y++ {
@@ -55,12 +55,12 @@ func ImageToTensor(img image.Image) [][][]float64 {
 func TensorToImage(tensor [][][]float64) image.Image {
 	height, width := len(tensor), len(tensor[0])
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	var tileWidth int = width / numCoroutines
+	var tileWidth int = width / numWorkers
 
 	var wg sync.WaitGroup
-	wg.Add(numCoroutines)
+	wg.Add(numWorkers)
 
-	for i := 0; i < numCoroutines; i++ {
+	for i := 0; i < numWorkers; i++ {
 		go func(start, end int) {
 			defer wg.Done()
 			for y := 0; y < height; y++ {
@@ -195,16 +195,32 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 		}
 	}
 
-	// Apply overlay with alpha blending
-	for y := offsetY; y < offsetY+newOverlayHeight; y++ {
-		for x := offsetX; x < offsetX+newOverlayWidth; x++ {
-			alpha := scaleOverlay[y-offsetY][x-offsetX][3]
-			for i := 0; i < 3; i++ {
-				newTensor[y][x][i] = scaleOverlay[y-offsetY][x-offsetX][i] + ((1 - alpha) * newTensor[y][x][i])
-			}
-			newTensor[y][x][3] = 1.0
+	tileHeight := newOverlayHeight / numWorkers
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		startY := offsetY + i*tileHeight
+		endY := offsetY + (i+1)*tileHeight
+		if i == numWorkers-1 {
+			endY = offsetY + newOverlayHeight
 		}
+
+		go func(startY, endY int) {
+			defer wg.Done()
+			// Apply overlay with alpha blending
+			for y := startY; y < endY; y++ {
+				for x := offsetX; x < offsetX+newOverlayWidth; x++ {
+					alpha := scaleOverlay[y-offsetY][x-offsetX][3]
+					for i := 0; i < 3; i++ {
+						newTensor[y][x][i] = scaleOverlay[y-offsetY][x-offsetX][i] + ((1 - alpha) * newTensor[y][x][i])
+					}
+					newTensor[y][x][3] = 1.0
+				}
+			}
+		}(startY, endY)
 	}
 
+	wg.Wait()
 	return newTensor, nil
 }
