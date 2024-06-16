@@ -25,9 +25,9 @@ openImage function: Loads an image from a given path and returns an image.Image 
 saveImage function: Saves an image.Image object to a specified path in JPEG format.
 main function:
 Loads the target image and the watermark image.
-Converts both images to tensors using [imagetor.ImageToTensor].
-Overlays the watermark tensor onto the target tensor using [imagetor.AddOverlay].
-Converts the resulting tensor back to an image using [imagetor.TensorToImage].
+Converts both images to tensors using `imagetor.ImageToTensor`.
+Overlays the watermark tensor onto the target tensor using `imagetor.AddOverlay`.
+Converts the resulting tensor back to an image using `imagetor.TensorToImage`.
 Saves the watermarked image to `output.jpg`.
 Measures and prints the execution time.
 
