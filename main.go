@@ -1,3 +1,15 @@
+// This file is the main entry point for the image processing application.
+// It reads an image, applies various image processing operations, and saves the result.
+//
+// The application uses the "imagetor" module for image processing operations.
+//
+// Usage:
+//   go run main.go
+//
+// Example:
+//   The application reads "large-image.jpg" and "logo.png" images.
+//   It then adds the logo image as an overlay to the target image.
+//   Finally, it saves the processed image as "output.jpg".
 package main
 
 import (
