@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -11,6 +12,22 @@ import (
 	"time"
 )
 
+func isJPGorPNG(file *os.File) bool {
+	var header [8]byte
+	if _, err := file.Read(header[:]); err != nil {
+		panic(err)
+	}
+	file.Seek(0, 0)
+
+	switch {
+	case bytes.Equal(header[:2], []byte{0xFF, 0xD8}): // JPEG
+		return true
+	case bytes.Equal(header[:], []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}): // PNG
+		return true
+	default:
+		return false
+	}
+}
 func openImage(path string) (image.Image, error) {
 	file, e := os.Open(path)
 	if e != nil {
@@ -18,6 +35,11 @@ func openImage(path string) (image.Image, error) {
 		return nil, e
 	}
 	defer file.Close()
+
+	if !isJPGorPNG(file) {
+		fmt.Println("Unsupported image format")
+		return nil, fmt.Errorf("unsupported image format")
+	}
 
 	img, _, e := image.Decode(file)
 	if e != nil {
@@ -48,34 +70,34 @@ func main() {
 
 	startTime := time.Now()
 
-	targetImage, err := openImage("large-image-2.jpg")
+	targetImage, err := openImage("large-image.jpg")
 	if err != nil {
 		fmt.Println("Error opening image: ", err)
 		return
 	}
 
-	// logoImage, err := openImage("logo.png")
-	// if err != nil {
-	// 	fmt.Println("Error opening image: ", err)
-	// 	return
-	// }
+	logoImage, err := openImage("logo.png")
+	if err != nil {
+		fmt.Println("Error opening image: ", err)
+		return
+	}
 
 	targetTensor := imagetor.ImageToTensor(targetImage)
-	// logoTensor := imagetor.ImageToTensor(logoImage)
+	logoTensor := imagetor.ImageToTensor(logoImage)
 
-	// resultTensor, err := imagetor.AddOverlay(targetTensor, logoTensor)
-	// if err != nil {
-	// 	fmt.Println("Error adding overlay: ", err)
-	// 	return
-	// }
+	resultTensor, err := imagetor.AddOverlay(targetTensor, &logoTensor)
+	if err != nil {
+		fmt.Println("Error adding overlay: ", err)
+		return
+	}
 
-	imagetor.UpSideDown(&targetTensor)
-	
-	imagetor.GrayScale(&targetTensor)
+	//imagetor.UpSideDown(&resultTensor)
 
-	imagetor.Rotate(&targetTensor, 60.0)
+	//imagetor.GrayScale(&resultTensor)
 
-	resultImage := imagetor.TensorToImage(targetTensor)
+	//imagetor.Rotate(&resultTensor, 5.0)
+
+	resultImage := imagetor.TensorToImage(resultTensor)
 
 	saveImage(resultImage, "output.jpg")
 
