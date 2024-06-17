@@ -111,17 +111,12 @@ func TensorToImage(tensor [][][]float64) image.Image {
 //
 // Args:
 //
-//	tensor: The tensor to resize.
+//	tensor: A pointer to the tensor to resize.
 //	width: The desired width of the resized tensor.
 //	height: The desired height of the resized tensor.
 //
-// Returns:
-//
-//	A new tensor representing the resized image, where each element is a float64
-//	value representing the interpolated RGB and alpha values of the corresponding
-//	pixel.
-func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
-	oldHeight, oldWidth := len(tensor), len(tensor[0])
+func Resize(tensor *[][][]float64, width int, height int) {
+	oldHeight, oldWidth := len(*tensor), len((*tensor)[0])
 	tileHeight := height / numWorkers
 
 	newTensor := make([][][]float64, height)
@@ -156,7 +151,7 @@ func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
 
 					// Perform bilinear interpolation for each channel
 					for c := 0; c < channels; c++ {
-						newTensor[y][x][c] = (1-dx)*(1-dy)*tensor[y0][x0][c] + dx*(1-dy)*tensor[y0][x0+1][c] + (1-dx)*dy*tensor[y0+1][x0][c] + dx*dy*tensor[y0+1][x0+1][c]
+						newTensor[y][x][c] = (1-dx)*(1-dy)*(*tensor)[y0][x0][c] + dx*(1-dy)*(*tensor)[y0][x0+1][c] + (1-dx)*dy*(*tensor)[y0+1][x0][c] + dx*dy*(*tensor)[y0+1][x0+1][c]
 					}
 				}
 			}
@@ -164,7 +159,7 @@ func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
 	}
 
 	wg.Wait() // Wait for all goroutines finish
-	return newTensor
+	*tensor = newTensor
 }
 
 // scaleFactor calculates the scaling factor for an overlay image to fit within a target image while maintaining aspect ratio.
@@ -208,21 +203,21 @@ func scaleFactor(target [][][]float64, overlay [][][]float64) float64 {
 // Returns:
 //
 //	A new 3D tensor representing the combined image, or an error if the target or overlay is empty.
-func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, error) {
-	if len(target) == 0 || len(overlay) == 0 {
+func AddOverlay(target [][][]float64, overlay *[][][]float64) ([][][]float64, error) {
+	if len(target) == 0 || len(*overlay) == 0 {
 		return nil, fmt.Errorf("target or overlay is empty")
 	}
 
 	targetWidth := len(target[0])
 	targetHeight := len(target)
 
-	factor := scaleFactor(target, overlay)
+	factor := scaleFactor(target, *overlay)
 
 	// Calculate new overlay size
-	newOverlayWidth := int(float64(len(overlay[0])) * factor)
-	newOverlayHeight := int(float64(len(overlay)) * factor)
+	newOverlayWidth := int(float64(len((*overlay)[0])) * factor)
+	newOverlayHeight := int(float64(len(*overlay)) * factor)
 
-	scaleOverlay := Resize(overlay, newOverlayWidth, newOverlayHeight)
+	Resize(overlay, newOverlayWidth, newOverlayHeight)
 
 	// Calculate center position for overlay
 	offsetX := (targetWidth - newOverlayWidth) / 2
@@ -253,9 +248,9 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 			// Apply overlay with alpha blending
 			for y := startY; y < endY; y++ {
 				for x := offsetX; x < offsetX+newOverlayWidth; x++ {
-					alpha := scaleOverlay[y-offsetY][x-offsetX][3]
+					alpha := (*overlay)[y-offsetY][x-offsetX][3]
 					for i := 0; i < 3; i++ {
-						newTensor[y][x][i] = scaleOverlay[y-offsetY][x-offsetX][i] + ((1 - alpha) * newTensor[y][x][i])
+						newTensor[y][x][i] = (*overlay)[y-offsetY][x-offsetX][i] + ((1 - alpha) * newTensor[y][x][i])
 					}
 					newTensor[y][x][3] = 1.0
 				}
