@@ -85,21 +85,20 @@ func main() {
 	targetTensor := imagetor.ImageToTensor(targetImage)
 	logoTensor := imagetor.ImageToTensor(logoImage)
 
-	resultTensor, err := imagetor.AddOverlay(targetTensor, &logoTensor)
-	if err != nil {
+	if err := imagetor.AddOverlay(&targetTensor, &logoTensor); err != nil {
 		fmt.Println("Error adding overlay: ", err)
 		return
 	}
 
 	//imagetor.UpSideDown(&resultTensor)
 
-	//imagetor.GrayScale(&resultTensor)
+	// imagetor.GrayScale(&resultTensor)
 
-	//imagetor.Rotate(&resultTensor, 5.0)
+	// imagetor.Rotate(&resultTensor, 5.0)
 
-	resultImage := imagetor.TensorToImage(resultTensor)
+	resultImage := imagetor.TensorToImage(targetTensor)
 
-	saveImage(resultImage, "output.jpg")
+	_ = saveImage(resultImage, "output.jpg")
 
 	endTime := time.Now()
 	elapsedTime := endTime.Sub(startTime)
