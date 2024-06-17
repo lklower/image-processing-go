@@ -6,6 +6,7 @@ import (
 	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
+	"math"
 	"sync"
 )
 
@@ -13,7 +14,19 @@ import (
 const channels int = 4
 const numWorkers int = 4
 
-// imageToTensor converts an image.Image to a 3D tensor of float64.
+// ImageToTensor converts an image.Image to a 3D tensor of float64 values.
+//
+// The image is converted to a tensor with each element representing the normalized
+// RGB and alpha values of the corresponding pixel.
+//
+// Args:
+//
+//	img: The image to convert.
+//
+// Returns:
+//
+//	A 3D tensor representing the image, where each element is a float64 value
+//	representing the normalized RGB and alpha values of the corresponding pixel.
 func ImageToTensor(img image.Image) [][][]float64 {
 	var bounds image.Rectangle = img.Bounds()
 	var width int = bounds.Max.X - bounds.Min.X
@@ -51,7 +64,19 @@ func ImageToTensor(img image.Image) [][][]float64 {
 	return tensor
 }
 
-// tensorToImage converts a 3D tensor of float64 to an image.Image.
+// TensorToImage converts a 3D tensor of float64 values to an image.Image.
+//
+// The tensor is converted to an image with each element representing the
+// RGB and alpha values of the corresponding pixel.
+//
+// Args:
+//
+//	tensor: The tensor to convert.
+//
+// Returns:
+//
+//	An image.Image representing the tensor, where each pixel's RGB and alpha
+//	values are derived from the corresponding element in the tensor.
 func TensorToImage(tensor [][][]float64) image.Image {
 	height, width := len(tensor), len(tensor[0])
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
@@ -79,7 +104,22 @@ func TensorToImage(tensor [][][]float64) image.Image {
 	return img
 }
 
-// resize resizes a tensor using bilinear interpolation.
+// Resize resizes a tensor using bilinear interpolation.
+//
+// The tensor is resized to the specified width and height, preserving the
+// aspect ratio of the original tensor.
+//
+// Args:
+//
+//	tensor: The tensor to resize.
+//	width: The desired width of the resized tensor.
+//	height: The desired height of the resized tensor.
+//
+// Returns:
+//
+//	A new tensor representing the resized image, where each element is a float64
+//	value representing the interpolated RGB and alpha values of the corresponding
+//	pixel.
 func Resize(tensor [][][]float64, width int, height int) [][][]float64 {
 	oldHeight, oldWidth := len(tensor), len(tensor[0])
 	tileHeight := height / numWorkers
@@ -225,4 +265,107 @@ func AddOverlay(target [][][]float64, overlay [][][]float64) ([][][]float64, err
 
 	wg.Wait()
 	return newTensor, nil
+}
+
+// UpSideDown flips the image represented by the tensor vertically.
+//
+// The function modifies the input tensor in place, flipping the image vertically.
+//
+// Args:
+//
+//	tensor: A pointer to the 3D tensor representing the image.
+func UpSideDown(tensor *[][][]float64) {
+	height, width := len(*tensor), len((*tensor)[0])
+
+	for y := 0; y < height/2; y++ {
+		tr := (*tensor)[y]
+		br := (*tensor)[height-1-y]
+
+		for x := 0; x < width; x++ {
+			tr[x], br[x] = br[x], tr[x]
+		}
+	}
+}
+
+// GrayScale converts the image represented by the tensor to grayscale.
+//
+// The function modifies the input tensor in place, converting the image to grayscale
+// using the LUMINOSITY method.
+//
+// Args:
+//
+//	tensor: A pointer to the 3D tensor representing the image.
+func GrayScale(tensor *[][][]float64) {
+	height, width := len(*tensor), len((*tensor)[0])
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			r, g, b := (*tensor)[y][x][0], (*tensor)[y][x][1], (*tensor)[y][x][2]
+
+			// Calculate grayscale value using LUMINOSITY method
+			gray := 0.2126*r + 0.7152*g + 0.0722*b
+
+			(*tensor)[y][x][0] = gray
+			(*tensor)[y][x][1] = gray
+			(*tensor)[y][x][2] = gray
+		}
+	}
+
+}
+
+// Rotate rotates the image represented by the tensor by the specified angle.
+//
+// The function modifies the input tensor in place, rotating the image by the
+// specified angle using bilinear interpolation.
+//
+// Args:
+//
+//	tensor: A pointer to the 3D tensor representing the image.
+//	angle: The angle to rotate the image by, in degrees.
+func Rotate(tensor *[][][]float64, angle float64) {
+	height, width := len(*tensor), len((*tensor)[0])
+
+	// Calculate Center
+	centerX, centerY := float64(width)/2.0, float64(height)/2.0
+
+	//Convert Angle to Radians
+	radians := angle * math.Pi / 180
+
+	tempTensor := make([][][]float64, height)
+	for y := 0; y < height; y++ {
+		tempTensor[y] = make([][]float64, width)
+		for x := 0; x < width; x++ {
+			tempTensor[y][x] = make([]float64, channels)
+		}
+	}
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			rotateX := float64(x) - centerX
+			rotateY := float64(y) - centerY
+
+			originalX := rotateX*math.Cos(radians) + rotateY*math.Sin(radians) + centerX
+			originalY := -rotateX*math.Sin(radians) + rotateY*math.Cos(radians) + centerY
+
+			// Bilinear Interpolation (if within bounds)
+			if originalX >= 0 && originalX < float64(width) && originalY >= 0 && originalY < float64(height) {
+				x1, y1 := int(math.Floor(originalX)), int(math.Floor(originalY))
+				x2, y2 := x1, y1
+				dx, dy := originalX-math.Floor(originalX), originalY-math.Floor(originalY)
+
+				for c := 0; c < channels; c++ {
+					tempTensor[y][x][c] = (1-dx)*(1-dy)*(*tensor)[y1][x1][c] +
+						dx*(1-dy)*(*tensor)[y1][x2][c] +
+						(1-dx)*dy*(*tensor)[y2][x1][c] +
+						dx*dy*(*tensor)[y2][x2][c]
+				}
+			}
+		}
+	}
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			(*tensor)[y][x] = tempTensor[y][x]
+		}
+	}
 }
