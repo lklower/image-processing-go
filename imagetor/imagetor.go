@@ -1,3 +1,11 @@
+// Package imagetor provides image processing functionalities for manipulating images represented as tensors.
+//
+// This package offers a set of functions for converting images to tensors, resizing,
+// adding overlays, flipping, converting to grayscale, and rotating images.
+//
+// The package utilizes goroutines for parallel processing, enhancing performance.
+//
+// Version: 0.1 alpha
 package imagetor
 
 import (
@@ -189,15 +197,18 @@ func scaleFactor(target [][][]float64, overlay [][][]float64) float64 {
 
 // AddOverlay adds an overlay image to a target image with alpha blending.
 //
-// The overlay image is resized to fit within the target image, maintaining its aspect ratio.
-// The overlay is then centered within the target image.
-//
-// Alpha blending is applied to the overlay, allowing the target image to show through.
+// The overlay image is scaled to fit within the target image while maintaining
+// its aspect ratio. The overlay is then positioned at the center of the target
+// image. Alpha blending is applied to combine the overlay with the target image.
 //
 // Args:
 //
-//	target: A pointer of the target image represented as a 3D tensor of float64.
-//	overlay: A pointer of the overlay image represented as a 3D tensor of float64.
+//	target: A pointer to the 3D tensor representing the target image.
+//	overlay: A pointer to the 3D tensor representing the overlay image.
+//
+// Returns:
+//
+//	An error if the target or overlay image is empty.
 func AddOverlay(target *[][][]float64, overlay *[][][]float64) error {
 	if len(*target) == 0 || len(*overlay) == 0 {
 		return fmt.Errorf("target or overlay is empty")
