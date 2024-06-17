@@ -48,28 +48,34 @@ func main() {
 
 	startTime := time.Now()
 
-	targetImage, err := openImage("large-image.jpg")
+	targetImage, err := openImage("large-image-2.jpg")
 	if err != nil {
 		fmt.Println("Error opening image: ", err)
 		return
 	}
 
-	logoImage, err := openImage("logo.png")
-	if err != nil {
-		fmt.Println("Error opening image: ", err)
-		return
-	}
+	// logoImage, err := openImage("logo.png")
+	// if err != nil {
+	// 	fmt.Println("Error opening image: ", err)
+	// 	return
+	// }
 
 	targetTensor := imagetor.ImageToTensor(targetImage)
-	logoTensor := imagetor.ImageToTensor(logoImage)
+	// logoTensor := imagetor.ImageToTensor(logoImage)
 
-	resultTensor, err := imagetor.AddOverlay(targetTensor, logoTensor)
-	if err != nil {
-		fmt.Println("Error adding overlay: ", err)
-		return
-	}
+	// resultTensor, err := imagetor.AddOverlay(targetTensor, logoTensor)
+	// if err != nil {
+	// 	fmt.Println("Error adding overlay: ", err)
+	// 	return
+	// }
 
-	resultImage := imagetor.TensorToImage(resultTensor)
+	imagetor.UpSideDown(&targetTensor)
+	
+	imagetor.GrayScale(&targetTensor)
+
+	imagetor.Rotate(&targetTensor, 60.0)
+
+	resultImage := imagetor.TensorToImage(targetTensor)
 
 	saveImage(resultImage, "output.jpg")
 
