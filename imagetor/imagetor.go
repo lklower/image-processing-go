@@ -114,7 +114,6 @@ func TensorToImage(tensor [][][]float64) image.Image {
 //	tensor: A pointer to the tensor to resize.
 //	width: The desired width of the resized tensor.
 //	height: The desired height of the resized tensor.
-//
 func Resize(tensor *[][][]float64, width int, height int) {
 	oldHeight, oldWidth := len(*tensor), len((*tensor)[0])
 	tileHeight := height / numWorkers
@@ -197,21 +196,17 @@ func scaleFactor(target [][][]float64, overlay [][][]float64) float64 {
 //
 // Args:
 //
-//	target: The target image represented as a 3D tensor of float64.
-//	overlay: The overlay image represented as a 3D tensor of float64.
-//
-// Returns:
-//
-//	A new 3D tensor representing the combined image, or an error if the target or overlay is empty.
-func AddOverlay(target [][][]float64, overlay *[][][]float64) ([][][]float64, error) {
-	if len(target) == 0 || len(*overlay) == 0 {
-		return nil, fmt.Errorf("target or overlay is empty")
+//	target: A pointer of the target image represented as a 3D tensor of float64.
+//	overlay: A pointer of the overlay image represented as a 3D tensor of float64.
+func AddOverlay(target *[][][]float64, overlay *[][][]float64) error {
+	if len(*target) == 0 || len(*overlay) == 0 {
+		return fmt.Errorf("target or overlay is empty")
 	}
 
-	targetWidth := len(target[0])
-	targetHeight := len(target)
+	targetWidth := len((*target)[0])
+	targetHeight := len(*target)
 
-	factor := scaleFactor(target, *overlay)
+	factor := scaleFactor(*target, *overlay)
 
 	// Calculate new overlay size
 	newOverlayWidth := int(float64(len((*overlay)[0])) * factor)
@@ -223,26 +218,12 @@ func AddOverlay(target [][][]float64, overlay *[][][]float64) ([][][]float64, er
 	offsetX := (targetWidth - newOverlayWidth) / 2
 	offsetY := (targetHeight - newOverlayHeight) / 2
 
-	// Create new 3d tensor to hold the result
-	newTensor := make([][][]float64, targetHeight)
-	for y := 0; y < targetHeight; y++ {
-		newTensor[y] = make([][]float64, targetWidth)
-		for x := 0; x < targetWidth; x++ {
-			newTensor[y][x] = make([]float64, 4)
-			copy(newTensor[y][x], target[y][x])
-		}
-	}
-
 	tileHeight := newOverlayHeight / numWorkers
+
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-		// startY := offsetY + i*tileHeight
-		// endY := offsetY + (i+1)*tileHeight
-		// if i == numWorkers-1 {
-		// 	endY = offsetY + newOverlayHeight
-		// }
 		go func(startY, endY int) {
 			defer wg.Done()
 			// Apply overlay with alpha blending
@@ -250,16 +231,15 @@ func AddOverlay(target [][][]float64, overlay *[][][]float64) ([][][]float64, er
 				for x := offsetX; x < offsetX+newOverlayWidth; x++ {
 					alpha := (*overlay)[y-offsetY][x-offsetX][3]
 					for i := 0; i < 3; i++ {
-						newTensor[y][x][i] = (*overlay)[y-offsetY][x-offsetX][i] + ((1 - alpha) * newTensor[y][x][i])
+						(*target)[y][x][i] = (*overlay)[y-offsetY][x-offsetX][i] + ((1 - alpha) * (*target)[y][x][i])
 					}
-					newTensor[y][x][3] = 1.0
+					(*target)[y][x][3] = 1.0
 				}
 			}
 		}(offsetY+i*tileHeight, offsetY+(i+1)*tileHeight)
 	}
-
 	wg.Wait()
-	return newTensor, nil
+	return nil
 }
 
 // UpSideDown flips the image represented by the tensor vertically.
