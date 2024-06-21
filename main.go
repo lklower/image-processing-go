@@ -82,7 +82,7 @@ func main() {
 
 	startTime := time.Now()
 
-	targetImage, err := openImage("large-image.jpg")
+	targetImage, err := openImage("canteen2.jpg")
 	if err != nil {
 		fmt.Println("Error opening image: ", err)
 		return
